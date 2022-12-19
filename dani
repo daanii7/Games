@@ -1,0 +1,199 @@
+import pygame, random
+
+# Para poner el tamaño y el color
+WIDTH = 800
+HEIGHT = 600
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+
+pygame.init()
+pygame.mixer.init()
+# Las dimensiones que quieres que se vea (las he puesto arriba)
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+# Título que quieres
+pygame.display.set_caption("Meteoritos DANI")
+clock = pygame.time.Clock()
+
+# Ponemos los valores que queramos de nuestro marcador
+def draw_text(surface, text, size, x, y):
+    # La fuente que queremos
+    font = pygame.font.SysFont("serif", size)
+    # El color que queremos y ponemos también text y True para que esté mas marcado
+    text_surface  = font.render(text, True, WHITE)
+    # Para que esté recto
+    text_rect = text_surface.get_rect()
+    text_rect.midtop = (x, y)
+    surface.blit(text_surface, text_rect)
+
+# Esto lo vamos a utilizar para poner la barra de escudo o salud y todas las dimensiones y colores
+def draw_shield_bar(surface, x, y, porcentage):
+    # La altura
+    BAR_LENGHT = 100
+    BAR_HEIGHT = 10
+    fill = (porcentage /100) * BAR_LENGHT
+    border = pygame.Rect(x, y, BAR_LENGHT, BAR_HEIGHT)
+    fill = pygame.Rect(x, y, fill, BAR_HEIGHT)
+    pygame.draw.rect(surface, GREEN, fill)
+    pygame.draw.rect(surface, WHITE, border, 2)
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        # Ponemos aqui la imagen de la nave
+        self.image = pygame.image.load("assets/player.png").convert()
+        # Ponemos todo el fondo de negro
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.centerx = WIDTH // 2
+        self.rect.bottom = HEIGHT - 10
+        self.speed_x = 0
+        # Aqui para la vida que lleva el escudo
+        self.shield = 100
+
+    def update(self):
+        self.speed_x = 0
+        keystate = pygame.key.get_pressed()
+        # La velocidad a la que van si van hacia la izquierda o derecha
+        if keystate[pygame.K_LEFT]:
+            self.speed_x = -10
+        if keystate[pygame.K_RIGHT]:
+            self.speed_x = 10
+        self.rect.x += self.speed_x
+        if self.rect.right > WIDTH:
+            self.rect.right = WIDTH
+        if self.rect.left < 0:
+            self.rect.left = 0
+
+    def shoot(self):
+        bullet = Bullet(self.rect.centerx, self.rect.top)
+        all_sprites.add(bullet)
+        bullets.add(bullet)
+
+class Meteor(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        # Aqui pongo para que tengan una imagen los meteoritos
+        self.image = random.choice(meteor_images)
+        # Aqui quito para que esté el fondo negro, y lo hago debajo porque si no primero se ponen los meteoritos y después lo tapa el negro
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        # Este es para que salgan de forma aleatoria en las medidas esas
+        self.rect.x = random.randrange(WIDTH - self.rect.width)
+        self.rect.y = random.randrange(-100, -40)
+        # Aqui pongo a la velocidad que quiero que tenga entre dos números
+        self.speedy = random.randrange(1 ,10)
+        # Aqui pongo para que salga de forma que esté inclinado y no sea todo recto
+        self.speedx = random.randrange(-5, 5)
+
+    def update(self):
+        self.rect.y += self.speedy
+        self.rect.x += self.speedx
+        if self.rect.top > HEIGHT + 10 or self.rect.left < -40 or self.rect.right > WIDTH + 40:
+            self.rect.x = random.randrange(WIDTH - self.rect.width)
+            self.rect.y = random.randrange(-150, -100)
+            self.speedy = random.randrange(1,10)
+            # Esto es para que los meteoritos se generen y no se acaben
+
+# Esto para poner la bala y su velocidad 
+class Bullet(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.image.load("assets/laser1.png")
+        self.image.set_colorkey(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.y = y
+        self.rect.centerx = x
+        self.speedy = -10
+
+    def update(self):
+        self.rect.y += self.speedy
+        # Para eliminarlo cuando salga de tu pantalla
+        if self.rect.bottom < 0:
+            self.kill()
+
+# Aqui añadimos todos los meteoritos que queremos a una lista para que después pongamos que la queremos random
+meteor_images = []
+meteor_list = ["assets/meteorGrey_big1.png", "assets/meteorGrey_big2.png", "assets/meteorGrey_big3.png", "assets/meteorGrey_big4.png",
+				"assets/meteorGrey_med1.png", "assets/meteorGrey_med2.png", "assets/meteorGrey_small1.png", "assets/meteorGrey_small2.png",
+				"assets/meteorGrey_tiny1.png", "assets/meteorGrey_tiny2.png"] 
+
+for img in meteor_list:
+    meteor_images.append(pygame.image.load(img).convert())
+
+# Para poner un fondo
+background = pygame.image.load("assets/background.png").convert()
+
+all_sprites = pygame.sprite.Group()
+meteor_list = pygame.sprite.Group()
+bullets = pygame.sprite.Group()
+
+player = Player()
+all_sprites.add(player)
+for i in range(8):
+    meteor = Meteor()
+    all_sprites.add(meteor)
+    meteor_list.add(meteor)
+
+# Hacer el marcador
+score = 0
+
+# Bucle
+running = True
+while running:
+    # Hace que el bucle se mantenga a la velocidad correcta
+    clock.tick(60)
+    # Entrada de proceso de eventos
+    for event in pygame.event.get():
+        # Para que se pueda cerrar la ventana y no pete
+        if event.type == pygame.QUIT:
+            running = False
+
+        #Para hacer que dispare con la barra espaciadora
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                player.shoot()
+
+
+    # Esto es para actualizar
+    all_sprites.update()
+
+    # Colisiones de meteorito y laser
+    hits = pygame.sprite.groupcollide(meteor_list, bullets, True, True)
+    # Para que sigan cayendo meteoritos y no se paren
+    for hit in hits:
+        # Esto es para que cada vez le dé a algun meteorito aumente 5 puntos
+        score += 10
+        meteor = Meteor()
+        all_sprites.add(meteor)
+        meteor_list.add(meteor)
+
+
+    # Colisiones de jugador y meteorito, y True significa que cuando te da desaparece
+    hits = pygame.sprite.spritecollide(player, meteor_list, True)
+    # Aqui para que tenga el escudo
+    for hit in hits:
+        player.shield -=25
+        # Esto para que no desaparezcan los meteoritos cuando te quitan vida
+        meteor = Meteor()
+        all_sprites.add(meteor)
+        meteor_list.add(meteor)
+        
+        # Esto para que cuando se te acabe la vida se cierre el juego
+        if player.shield <=0:
+            running = False
+
+    # Dibujar
+    screen.blit(background, [0, 0])
+    
+    all_sprites.draw(screen)
+   
+    # Aqui lo vamos a poner para que se ponga en pantalla
+    draw_text(screen, str(score), 25, WIDTH//2, 10)
+
+    draw_shield_bar(screen, 5, 5, player.shield)
+
+    # Despues de dibujar pasarlo a la pantalla
+    pygame.display.flip()
+
+pygame.quit()
